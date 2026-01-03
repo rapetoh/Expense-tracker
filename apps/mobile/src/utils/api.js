@@ -1,0 +1,96 @@
+import { Platform } from "react-native";
+
+function resolveUrl(path) {
+  if (!path) return path;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  // In native (Expo Go / TestFlight), relative URLs like "/api" or "/integrations"
+  // will NOT resolve to your backend. We must use a full base URL.
+  // Prefer the proxy URL when available since it is reachable from physical devices.
+  const proxyBase = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
+  const base = process.env.EXPO_PUBLIC_BASE_URL;
+
+  const chosenBase = Platform.OS === "web" ? base : proxyBase || base;
+
+  if (chosenBase && path.startsWith("/")) {
+    const trimmed = chosenBase.endsWith("/")
+      ? chosenBase.slice(0, -1)
+      : chosenBase;
+    return `${trimmed}${path}`;
+  }
+
+  return path;
+}
+
+export async function apiFetchJson(
+  path,
+  { method = "GET", deviceId, body, headers, responseType } = {},
+) {
+  const requestHeaders = {
+    ...(headers || {}),
+  };
+
+  if (deviceId) {
+    requestHeaders["x-device-id"] = deviceId;
+  }
+
+  let requestBody = body;
+  if (body && typeof body === "object" && !(body instanceof FormData)) {
+    requestHeaders["Content-Type"] = "application/json";
+    requestBody = JSON.stringify(body);
+  } else if (body instanceof FormData) {
+    // Don't set Content-Type for FormData, let the browser set it with boundary
+    delete requestHeaders["Content-Type"];
+  }
+
+  const url = resolveUrl(path);
+
+  const response = await fetch(url, {
+    method,
+    headers: requestHeaders,
+    body: requestBody,
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `When fetching ${path}, the response was [${response.status}] ${response.statusText}${text ? `: ${text}` : ""}`,
+    );
+  }
+
+  if (responseType === "blob" || responseType === "text") {
+    return response;
+  }
+
+  const data = await response.json().catch(() => null);
+  return data;
+}
+
+export function resolveApiUrl(path) {
+  return resolveUrl(path);
+}
+
+export function formatMoney(cents, currency = "USD") {
+  const safe = Number.isFinite(cents) ? cents : 0;
+  const dollars = safe / 100;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+    }).format(dollars);
+  } catch {
+    return `$${dollars.toFixed(2)}`;
+  }
+}
+
+export function toCentsFromLooseNumber(value) {
+  if (value === null || value === undefined) return 0;
+  const asNumber =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(/[^0-9.\-]/g, ""));
+  if (!Number.isFinite(asNumber)) return 0;
+  return Math.round(asNumber * 100);
+}
