@@ -1,5 +1,5 @@
-import { getUserIdFromRequest } from '../utils/user';
-import sql from '../utils/sql';
+import { getUserIdFromRequest } from '../../utils/user';
+import sql from '../../utils/sql';
 import { SignJWT } from 'jose';
 
 /**
