@@ -1,4 +1,4 @@
-import { requireUserId } from "@/app/api/utils/user";
+import { requireUserId } from "../../utils/user";
 
 function withTimeout(ms) {
   const controller = new AbortController();

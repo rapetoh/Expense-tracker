@@ -1,6 +1,6 @@
 import { hash, verify } from 'argon2';
-import { getUserIdFromRequest } from '@/app/api/utils/user';
-import sql from '@/app/api/utils/sql';
+import { getUserIdFromRequest } from '../utils/user';
+import sql from '../utils/sql';
 
 /**
  * PUT /api/user/password - Change user password

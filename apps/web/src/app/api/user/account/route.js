@@ -1,5 +1,5 @@
-import { getUserIdFromRequest } from '@/app/api/utils/user';
-import sql from '@/app/api/utils/sql';
+import { getUserIdFromRequest } from '../utils/user';
+import sql from '../utils/sql';
 
 /**
  * DELETE /api/user/account - Delete user account and all associated data

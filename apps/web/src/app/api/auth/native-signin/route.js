@@ -1,5 +1,5 @@
 import { verify } from 'argon2';
-import sql from '@/app/api/utils/sql';
+import sql from '../../utils/sql';
 import { SignJWT } from 'jose';
 
 /**

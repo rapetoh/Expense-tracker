@@ -1,5 +1,5 @@
-import sql from "@/app/api/utils/sql";
-import { requireUserId, ensureUserSettings } from "@/app/api/utils/user";
+import sql from "../utils/sql";
+import { requireUserId, ensureUserSettings } from "../utils/user";
 
 export async function GET(request) {
   const { userId, error } = await requireUserId(request);

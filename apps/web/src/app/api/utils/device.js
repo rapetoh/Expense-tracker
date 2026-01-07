@@ -1,4 +1,4 @@
-import sql from "@/app/api/utils/sql";
+import sql from "./sql";
 import { getUserIdFromRequest } from "./user";
 
 export function getDeviceIdFromRequest(request) {

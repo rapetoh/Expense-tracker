@@ -1,4 +1,4 @@
-import { requireUserId } from "@/app/api/utils/user";
+import { requireUserId } from "../../utils/user";
 
 export async function POST(request) {
   const { userId, error } = await requireUserId(request);

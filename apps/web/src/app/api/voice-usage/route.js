@@ -1,5 +1,5 @@
-import sql from "@/app/api/utils/sql";
-import { requireUserId, ensureUserSettings } from "@/app/api/utils/user";
+import sql from "../utils/sql";
+import { requireUserId, ensureUserSettings } from "../utils/user";
 
 const FREE_VOICE_LIMIT_PER_MONTH = 10;
 
