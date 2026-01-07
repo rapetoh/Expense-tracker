@@ -8,12 +8,11 @@ import updatedFetch from '../src/__create/fetch';
 const API_BASENAME = '/api';
 const api = new Hono();
 
-// Get current directory
-const __dirname = join(fileURLToPath(new URL('.', import.meta.url)), '../src/app/api');
-// Get the __create directory (where this file is located)
-const __createDir = join(fileURLToPath(new URL('.', import.meta.url)), '..');
-// Get the project root (one level up from __create, where vite.config.ts is)
-const projectRoot = join(__createDir, '..');
+// Get the project root - use process.cwd() which is the project root in both dev and production
+// In Render, the working directory is set to the project root
+const projectRoot = process.cwd();
+// Get the API routes directory - use project root to work in both dev and production
+const __dirname = join(projectRoot, 'src/app/api');
 if (globalThis.fetch) {
   globalThis.fetch = updatedFetch;
 }
