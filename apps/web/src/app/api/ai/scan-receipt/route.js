@@ -1,4 +1,4 @@
-import { requireUserId } from "../../utils/user";
+import { requireUserId } from "../../utils/user.js";
 
 export async function POST(request) {
   const { userId, error } = await requireUserId(request);

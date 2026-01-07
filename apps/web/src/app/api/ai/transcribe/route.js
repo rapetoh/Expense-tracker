@@ -1,4 +1,4 @@
-import { requireUserId } from "../../utils/user";
+import { requireUserId } from "../../utils/user.js";
 
 function withTimeout(ms) {
   const controller = new AbortController();

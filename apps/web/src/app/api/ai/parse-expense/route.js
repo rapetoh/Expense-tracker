@@ -1,6 +1,6 @@
-import sql from "../../utils/sql";
-import { requireUserId, ensureUserSettings } from "../../utils/user";
-import normalizeVendor from "../../utils/normalizeVendor";
+import sql from "../../utils/sql.js";
+import { requireUserId, ensureUserSettings } from "../../utils/user.js";
+import normalizeVendor from "../../utils/normalizeVendor.js";
 
 // Removed getBaseUrlFromRequest - no longer needed for direct OpenAI API calls
 

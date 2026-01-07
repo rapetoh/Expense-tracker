@@ -1,5 +1,5 @@
-import sql from "../../utils/sql";
-import { requireUserId } from "../../utils/user";
+import sql from "../../utils/sql.js";
+import { requireUserId } from "../../utils/user.js";
 
 export async function DELETE(request, { params: { id } }) {
   const { userId, error } = await requireUserId(request);

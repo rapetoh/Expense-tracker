@@ -1,4 +1,4 @@
-import sql from "./sql";
+import sql from "./sql.js";
 import { getUserIdFromRequest } from "./user";
 
 export function getDeviceIdFromRequest(request) {

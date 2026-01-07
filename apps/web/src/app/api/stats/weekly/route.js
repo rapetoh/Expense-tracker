@@ -1,6 +1,6 @@
-import sql from "../../utils/sql";
-import { requireUserId, ensureUserSettings } from "../../utils/user";
-import { getExpectedMonthlyExpenses, getExpectedMonthlyIncome, calculateMonthlyAmount } from "../../utils/recurring";
+import sql from "../../utils/sql.js";
+import { requireUserId, ensureUserSettings } from "../../utils/user.js";
+import { getExpectedMonthlyExpenses, getExpectedMonthlyIncome, calculateMonthlyAmount } from "../../utils/recurring.js";
 
 function isoDowFromUtcDate(d) {
   // 1=Mon ... 7=Sun

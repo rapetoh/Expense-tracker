@@ -1,5 +1,5 @@
 import { verify } from 'argon2';
-import sql from '../../utils/sql';
+import sql from '../../utils/sql.js';
 import { SignJWT } from 'jose';
 
 /**

@@ -1,6 +1,6 @@
-import sql from "../../utils/sql";
-import { requireUserId, ensureUserSettings } from "../../utils/user";
-import { getExpectedMonthlyExpenses, getExpectedMonthlyIncome } from "../../utils/recurring";
+import sql from "../../utils/sql.js";
+import { requireUserId, ensureUserSettings } from "../../utils/user.js";
+import { getExpectedMonthlyExpenses, getExpectedMonthlyIncome } from "../../utils/recurring.js";
 
 function startOfUtcDay(d) {
   const x = new Date(d);

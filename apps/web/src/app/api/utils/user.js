@@ -1,5 +1,5 @@
 import { jwtVerify } from 'jose';
-import sql from './sql';
+import sql from './sql.js';
 
 /**
  * Extract user ID from JWT token in Authorization header
