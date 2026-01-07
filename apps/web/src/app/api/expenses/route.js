@@ -1,20 +1,20 @@
 import sql from "@/app/api/utils/sql";
-import { ensureDeviceSettings, requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId, ensureUserSettings } from "@/app/api/utils/user";
 import normalizeVendor from "@/app/api/utils/normalizeVendor";
 
 export async function GET(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
-  await ensureDeviceSettings(deviceId);
+  await ensureUserSettings(userId);
 
   const url = new URL(request.url);
   const limitParam = url.searchParams.get("limit");
   const limit = Math.max(1, Math.min(Number(limitParam || 50) || 50, 200));
 
   const items = await sql(
-    "SELECT id, device_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency FROM public.expenses WHERE device_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2",
-    [deviceId, limit],
+    "SELECT id, user_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency FROM public.expenses WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2",
+    [userId, limit],
   );
 
   // Convert Date objects to ISO strings for JSON serialization
@@ -30,10 +30,10 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
-  await ensureDeviceSettings(deviceId);
+  await ensureUserSettings(userId);
 
   const body = await request.json().catch(() => ({}));
 
@@ -72,16 +72,16 @@ export async function POST(request) {
 
     queries.push(
       txn(
-        "INSERT INTO public.expenses (device_id, amount_cents, vendor, category, note, occurred_at, type, is_recurring, recurrence_frequency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, device_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency",
-        [deviceId, amount_cents, vendor, category, note, occurred_at, type, is_recurring, recurrence_frequency],
+        "INSERT INTO public.expenses (user_id, amount_cents, vendor, category, note, occurred_at, type, is_recurring, recurrence_frequency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, user_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency",
+        [userId, amount_cents, vendor, category, note, occurred_at, type, is_recurring, recurrence_frequency],
       ),
     );
 
     if (vendorKey) {
       queries.push(
         txn(
-          "INSERT INTO public.vendor_category_map (device_id, vendor_key, category, updated_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (device_id, vendor_key) DO UPDATE SET category = EXCLUDED.category, updated_at = NOW() RETURNING device_id",
-          [deviceId, vendorKey, category],
+          "INSERT INTO public.vendor_category_map (user_id, vendor_key, category, updated_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (user_id, vendor_key) DO UPDATE SET category = EXCLUDED.category, updated_at = NOW() RETURNING user_id",
+          [userId, vendorKey, category],
         ),
       );
     }

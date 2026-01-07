@@ -1,5 +1,5 @@
 import sql from "@/app/api/utils/sql";
-import { ensureDeviceSettings, requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId, ensureUserSettings } from "@/app/api/utils/user";
 import { getExpectedMonthlyExpenses, getExpectedMonthlyIncome, calculateMonthlyAmount } from "@/app/api/utils/recurring";
 
 function isoDowFromUtcDate(d) {
@@ -21,10 +21,10 @@ function addDaysUtc(d, days) {
 }
 
 export async function GET(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
-  const settings = await ensureDeviceSettings(deviceId);
+  const settings = await ensureUserSettings(userId);
   const weekStart = settings?.week_start || 1; // 1=Mon
 
   // Check for custom date range in query params
@@ -51,20 +51,20 @@ export async function GET(request) {
 
   const [spentRows, incomeRows, dayRows, categoryRows] = await sql.transaction((txn) => [
     txn(
-      "SELECT COALESCE(SUM(amount_cents), 0) AS spent_cents FROM public.expenses WHERE device_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense'",
-      [deviceId, weekStartDate.toISOString(), weekEndDate.toISOString()],
+      "SELECT COALESCE(SUM(amount_cents), 0) AS spent_cents FROM public.expenses WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense'",
+      [userId, weekStartDate.toISOString(), weekEndDate.toISOString()],
     ),
     txn(
-      "SELECT COALESCE(SUM(amount_cents), 0) AS income_cents FROM public.expenses WHERE device_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'income'",
-      [deviceId, weekStartDate.toISOString(), weekEndDate.toISOString()],
+      "SELECT COALESCE(SUM(amount_cents), 0) AS income_cents FROM public.expenses WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'income'",
+      [userId, weekStartDate.toISOString(), weekEndDate.toISOString()],
     ),
     txn(
-      "SELECT date_trunc('day', occurred_at) AS day, COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents, COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents FROM public.expenses WHERE device_id = $1 AND occurred_at >= $2 AND occurred_at < $3 GROUP BY 1 ORDER BY 1",
-      [deviceId, weekStartDate.toISOString(), weekEndDate.toISOString()],
+      "SELECT date_trunc('day', occurred_at) AS day, COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents, COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents FROM public.expenses WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 GROUP BY 1 ORDER BY 1",
+      [userId, weekStartDate.toISOString(), weekEndDate.toISOString()],
     ),
     txn(
-      "SELECT category, COALESCE(SUM(amount_cents), 0) AS total_cents FROM public.expenses WHERE device_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense' GROUP BY category ORDER BY total_cents DESC",
-      [deviceId, weekStartDate.toISOString(), weekEndDate.toISOString()],
+      "SELECT category, COALESCE(SUM(amount_cents), 0) AS total_cents FROM public.expenses WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense' GROUP BY category ORDER BY total_cents DESC",
+      [userId, weekStartDate.toISOString(), weekEndDate.toISOString()],
     ),
   ]);
 
@@ -73,8 +73,8 @@ export async function GET(request) {
   const budgetCents = Number(settings?.weekly_budget_cents || 0);
 
   // Get expected weekly amounts from recurring items (monthly / 4.33)
-  const expectedMonthlyExpenses = await getExpectedMonthlyExpenses(deviceId);
-  const expectedMonthlyIncome = await getExpectedMonthlyIncome(deviceId);
+  const expectedMonthlyExpenses = await getExpectedMonthlyExpenses(userId);
+  const expectedMonthlyIncome = await getExpectedMonthlyIncome(userId);
   const expectedWeeklyExpenses = Math.round(expectedMonthlyExpenses / 4.33);
   const expectedWeeklyIncome = Math.round(expectedMonthlyIncome / 4.33);
 

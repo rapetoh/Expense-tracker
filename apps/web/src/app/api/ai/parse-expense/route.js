@@ -1,14 +1,14 @@
 import sql from "@/app/api/utils/sql";
-import { ensureDeviceSettings, requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId, ensureUserSettings } from "@/app/api/utils/user";
 import normalizeVendor from "@/app/api/utils/normalizeVendor";
 
 // Removed getBaseUrlFromRequest - no longer needed for direct OpenAI API calls
 
 export async function POST(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
-  await ensureDeviceSettings(deviceId);
+  await ensureUserSettings(userId);
 
   const body = await request.json().catch(() => ({}));
   const text = body.text ? String(body.text) : "";
@@ -18,8 +18,8 @@ export async function POST(request) {
   }
 
   const vendorRows = await sql(
-    "SELECT vendor_key, category FROM public.vendor_category_map WHERE device_id = $1 ORDER BY updated_at DESC LIMIT 50",
-    [deviceId],
+    "SELECT vendor_key, category FROM public.vendor_category_map WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 50",
+    [userId],
   );
 
   const knownRules = vendorRows
@@ -55,62 +55,20 @@ export async function POST(request) {
   };
 
   const systemPrompt =
-    "You are a receipt-style parser for an expense tracker that handles both expenses and income.\n" +
+    "You are an expense parser for a personal finance app. Parse the user's voice/text input and extract expense or income information.\n" +
     "- Return ONLY valid JSON that matches the provided JSON schema.\n" +
     "- CRITICAL: Your JSON response MUST include ALL properties from the schema: amount_cents, vendor, category, note, occurred_at, type, is_recurring, recurrence_frequency. If a value is not available, set it to null (but still include the field).\n" +
-    '- Convert amounts to amount_cents (integer cents). Example: "$12" => 1200.\n' +
-    "- type must be 'expense' or 'income'. Use 'expense' for money spent (purchases, bills, etc.) and 'income' for money received (salary, freelance, gifts received, refunds, etc.).\n" +
-    "- vendor should be the merchant/employer/source if present (e.g. Sweetgreen, Employer Name, Company Name, etc.). If no vendor is mentioned, set vendor to null (but you MUST still include the vendor field in your JSON).\n" +
-    "- For EXPENSE entries, category must be one of: Food & Dining, Transportation, Shopping, Bills & Utilities, Entertainment, Health & Fitness, Travel, Subscriptions, Personal Care, Education, Gifts & Donations, Other.\n" +
-    "- For INCOME entries, category must be one of: Salary/Wages, Freelance/Gig, Investment/Dividends, Rental Income, Business Income, Gift Received, Refund, Side Hustle, Other.\n" +
-    "- EXPENSE CATEGORIZATION RULES (follow these strictly for expenses):\n" +
-    "  * Streaming services (Netflix, Spotify, Hulu, Disney+, Apple Music, YouTube Premium, etc.) → Subscriptions\n" +
-    "  * Restaurants, cafes, fast food, food delivery (Uber Eats, DoorDash, etc.) → Food & Dining\n" +
-    "  * Grocery stores, supermarkets → Food & Dining\n" +
-    "  * Gas stations, Uber, Lyft, taxis, public transit, parking → Transportation\n" +
-    "  * Clothing stores, electronics, general retail shopping → Shopping\n" +
-    "  * Rent, utilities (electric, water, gas), phone bills, internet, insurance → Bills & Utilities\n" +
-    "  * Movies, concerts, games, events, tickets → Entertainment\n" +
-    "  * Gym, fitness, pharmacy, medical, doctor visits → Health & Fitness\n" +
-    "  * Hotels, flights, travel bookings, vacation expenses → Travel\n" +
-    "  * Software subscriptions, SaaS, recurring services, memberships → Subscriptions\n" +
-    "  * Haircuts, spa, beauty products, personal hygiene → Personal Care\n" +
-    "  * Schools, courses, books, educational materials → Education\n" +
-    "  * Gifts, donations, charity → Gifts & Donations\n" +
-    "- INCOME CATEGORIZATION RULES (follow these strictly for income):\n" +
-    "  * Salary, wages, regular employment income → Salary/Wages\n" +
-    "  * Freelance work, gig work, contract work → Freelance/Gig\n" +
-    "  * Stock dividends, interest, investment returns → Investment/Dividends\n" +
-    "  * Rental property income → Rental Income\n" +
-    "  * Business revenue, sales → Business Income\n" +
-    "  * Gifts received, birthday money, etc. → Gift Received\n" +
-    "  * Refunds, returns, reimbursements → Refund\n" +
-    "  * Side hustles, part-time income → Side Hustle\n" +
-    "- note is optional; keep it short.\n" +
-    "- occurred_at can be null unless the user explicitly said a time/date.\n" +
-    "- RECURRING TRANSACTION INFERENCE (set is_recurring and recurrence_frequency based on context):\n" +
-    "  * ALWAYS set is_recurring=true for: rent, mortgage, lease payments, subscriptions, memberships, salary/paychecks, insurance, utilities, phone bills, internet bills, streaming services\n" +
-    "  * ALWAYS set is_recurring=true when the user says phrases like: 'every month', 'every week', 'every year', 'monthly', 'weekly', 'annually', 'each month', 'each week', 'per month', 'per week', 'every single month', 'every single week', etc.\n" +
-    "  * ALWAYS set is_recurring=true for income entries where the user mentions a frequency (e.g., 'earning $X every month', 'getting $X monthly', 'receiving $X each week', 'making $X per month')\n" +
-    "  * RECURRING FREQUENCY RULES:\n" +
-    "    - Rent, mortgage, lease → 'monthly'\n" +
-    "    - Subscriptions (Netflix, Spotify, gym, etc.) → 'monthly'\n" +
-    "    - Salary/paycheck → 'biweekly' or 'monthly' (use 'monthly' if frequency unclear)\n" +
-    "    - Freelance income, freelance work → 'monthly' if user says 'every month' or 'monthly', otherwise infer from context\n" +
-    "    - Insurance → 'monthly', 'quarterly', or 'annually' (use 'monthly' if frequency unclear)\n" +
-    "    - Utilities (electric, water, gas), phone bills, internet → 'monthly'\n" +
-    "    - Property taxes → 'quarterly' or 'annually'\n" +
-    "    - If user says 'every month' or 'monthly' or 'each month' or 'per month' → 'monthly'\n" +
-    "    - If user says 'every week' or 'weekly' or 'each week' or 'per week' → 'weekly'\n" +
-    "    - If user says 'every year' or 'annually' or 'each year' or 'per year' → 'annually'\n" +
-    "    - If user says 'every two weeks' or 'biweekly' or 'bi-weekly' → 'biweekly'\n" +
-    "    - If user says 'every quarter' or 'quarterly' or 'each quarter' → 'quarterly'\n" +
-    "  * Set is_recurring=false for: one-time purchases, groceries, restaurants, gas/fuel, shopping, entertainment, travel, gifts, etc.\n" +
-    "  * If the user explicitly says 'recurring', 'monthly', 'weekly', 'every month', 'every week', etc., ALWAYS set is_recurring=true and use the indicated frequency\n" +
-    "  * If unsure whether something is recurring, default to is_recurring=false\n" +
-    (knownRules
-      ? `\nKNOWN VENDOR RULES (ALWAYS use these if vendor matches - override default categorization):\n${knownRules}\n`
-      : "");
+    '- Convert amounts to amount_cents (integer cents). Example: "$12.50" => 1250, "$100" => 10000, "five dollars" => 500.\n' +
+    "- type must be 'expense' or 'income'. Most entries are 'expense'. Only set to 'income' if explicitly mentioned (e.g., 'got paid', 'salary', 'refund').\n" +
+    "- Extract the vendor/merchant name if mentioned (e.g., 'Walmart', 'Starbucks', 'CVS Pharmacy'). If no vendor can be extracted, set vendor to null (but you MUST still include the vendor field in your JSON).\n" +
+    "- category must be one of: Food & Dining, Transportation, Shopping, Bills & Utilities, Entertainment, Health & Fitness, Travel, Subscriptions, Personal Care, Education, Gifts & Donations, Other.\n" +
+    "- For income entries, category can be 'Other' or a relevant category if applicable.\n" +
+    "- If the user mentions a date or time, extract it and format as ISO 8601 string. If no date mentioned, set occurred_at to null (the app will default to now).\n" +
+    "- If the user mentions recurring (e.g., 'monthly', 'every week', 'subscription'), set is_recurring to true and set recurrence_frequency appropriately. Otherwise set is_recurring to false and recurrence_frequency to null.\n" +
+    "- recurrence_frequency must be one of: 'weekly', 'biweekly', 'monthly', 'quarterly', 'annually', or null.\n" +
+    "- Extract any additional notes/descriptions the user provides.\n" +
+    `\nKnown vendor->category mappings (use these when vendor matches):\n${knownRules}\n` +
+    `\nUser input: "${text}"\n`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -160,8 +118,8 @@ export async function POST(request) {
   const normalizedVendor = normalizeVendor(parsed.vendor);
   if (normalizedVendor) {
     const rows = await sql(
-      "SELECT category FROM public.vendor_category_map WHERE device_id = $1 AND vendor_key = $2 LIMIT 1",
-      [deviceId, normalizedVendor],
+      "SELECT category FROM public.vendor_category_map WHERE user_id = $1 AND vendor_key = $2 LIMIT 1",
+      [userId, normalizedVendor],
     );
     if (rows[0]?.category) {
       parsed.category = rows[0].category;

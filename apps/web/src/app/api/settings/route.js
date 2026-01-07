@@ -1,16 +1,16 @@
 import sql from "@/app/api/utils/sql";
-import { ensureDeviceSettings, requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId, ensureUserSettings } from "@/app/api/utils/user";
 
 export async function GET(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
-  const row = await ensureDeviceSettings(deviceId);
+  const row = await ensureUserSettings(userId);
   return Response.json(row);
 }
 
 export async function PUT(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const body = await request.json().catch(() => ({}));
@@ -44,7 +44,7 @@ export async function PUT(request) {
     );
   }
 
-  await ensureDeviceSettings(deviceId);
+  await ensureUserSettings(userId);
 
   // Build dynamic UPDATE query based on what fields are provided
   const setClauses = [];
@@ -69,16 +69,16 @@ export async function PUT(request) {
   if (setClauses.length === 0) {
     // No fields to update, just return current settings
     const rows = await sql(
-      "SELECT * FROM public.device_settings WHERE device_id = $1 LIMIT 1",
-      [deviceId],
+      "SELECT * FROM public.device_settings WHERE user_id = $1 LIMIT 1",
+      [userId],
     );
     return Response.json(rows[0] || {});
   }
 
   setClauses.push(`updated_at = NOW()`);
-  values.push(deviceId);
+  values.push(userId);
 
-  const query = `UPDATE public.device_settings SET ${setClauses.join(", ")} WHERE device_id = $${paramIndex} RETURNING *`;
+  const query = `UPDATE public.device_settings SET ${setClauses.join(", ")} WHERE user_id = $${paramIndex} RETURNING *`;
 
   const rows = await sql(query, values);
 

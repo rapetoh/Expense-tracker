@@ -31,18 +31,18 @@ export function calculateMonthlyAmount(amountCents, frequency) {
 
 /**
  * Get expected monthly expenses from recurring expenses
- * @param {string} deviceId
+ * @param {string} userId
  * @returns {Promise<number>} Expected monthly expenses in cents
  */
-export async function getExpectedMonthlyExpenses(deviceId) {
+export async function getExpectedMonthlyExpenses(userId) {
   const rows = await sql(
     `SELECT amount_cents, recurrence_frequency 
      FROM public.expenses 
-     WHERE device_id = $1 
+     WHERE user_id = $1 
      AND type = 'expense' 
      AND is_recurring = true 
      AND recurrence_frequency IS NOT NULL`,
-    [deviceId],
+    [userId],
   );
 
   let total = 0;
@@ -55,18 +55,18 @@ export async function getExpectedMonthlyExpenses(deviceId) {
 
 /**
  * Get expected monthly income from recurring income
- * @param {string} deviceId
+ * @param {string} userId
  * @returns {Promise<number>} Expected monthly income in cents
  */
-export async function getExpectedMonthlyIncome(deviceId) {
+export async function getExpectedMonthlyIncome(userId) {
   const rows = await sql(
     `SELECT amount_cents, recurrence_frequency 
      FROM public.expenses 
-     WHERE device_id = $1 
+     WHERE user_id = $1 
      AND type = 'income' 
      AND is_recurring = true 
      AND recurrence_frequency IS NOT NULL`,
-    [deviceId],
+    [userId],
   );
 
   let total = 0;
@@ -76,4 +76,3 @@ export async function getExpectedMonthlyIncome(deviceId) {
 
   return total;
 }
-

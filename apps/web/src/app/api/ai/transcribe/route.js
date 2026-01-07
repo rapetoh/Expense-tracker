@@ -1,6 +1,4 @@
-import { requireDeviceId } from "@/app/api/utils/device";
-
-// Removed getBaseUrlFromRequest - no longer needed for direct OpenAI API calls
+import { requireUserId } from "@/app/api/utils/user";
 
 function withTimeout(ms) {
   const controller = new AbortController();
@@ -9,8 +7,16 @@ function withTimeout(ms) {
 }
 
 export async function POST(request) {
-  const { error } = requireDeviceId(request);
+  const { error } = await requireUserId(request);
   if (error) return error;
+
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  if (!openaiApiKey) {
+    return Response.json(
+      { error: "OpenAI API key not configured" },
+      { status: 500 },
+    );
+  }
 
   const contentType =
     request.headers.get("content-type") || "application/octet-stream";
@@ -38,9 +44,9 @@ export async function POST(request) {
     );
   }
 
-  const blob = new Blob([arrayBuffer], { type: contentType });
-  const form = new FormData();
-
+  // Convert arrayBuffer to Buffer, then create File object for FormData compatibility
+  const buffer = Buffer.from(arrayBuffer);
+  
   // A name is required for some multipart parsers.
   const inferredExt = contentType.includes("wav")
     ? "wav"
@@ -50,19 +56,13 @@ export async function POST(request) {
         ? "caf"
         : "m4a";
 
-  form.append("file", blob, `voice.${inferredExt}`);
-  form.append("model", "whisper-1");
+  const form = new FormData();
+  // Use File constructor instead of Blob for proper FormData handling in Node.js
+  const file = new File([buffer], `voice.${inferredExt}`, { type: contentType });
+  form.append("file", file);
+  form.append("model", "whisper-1"); // OpenAI Whisper model
 
   const resTimeout = withTimeout(25_000);
-
-  // Check for OpenAI API key
-  const openaiApiKey = process.env.OPENAI_API_KEY;
-  if (!openaiApiKey) {
-    return Response.json(
-      { error: "OpenAI API key not configured" },
-      { status: 500 },
-    );
-  }
 
   let res;
   try {
@@ -70,7 +70,6 @@ export async function POST(request) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${openaiApiKey}`,
-        Accept: "application/json",
       },
       body: form,
       signal: resTimeout.controller.signal,
@@ -92,6 +91,7 @@ export async function POST(request) {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
+    console.error("OpenAI Whisper API error:", errText);
     return Response.json(
       {
         error: `Transcription failed: ${res.status} ${res.statusText}`,

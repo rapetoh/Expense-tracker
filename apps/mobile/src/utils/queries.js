@@ -201,10 +201,13 @@ export function useScanReceipt({ deviceId } = {}) {
       formData.append('image', blob, filename);
 
       // Use fetch directly for FormData (not apiFetchJson which expects JSON)
-      const { resolveApiUrl } = await import('./api');
+      const { resolveApiUrl, getAuthHeaders } = await import('./api');
       const url = resolveApiUrl("/api/ai/scan-receipt");
       
-      const headers = {};
+      const authHeaders = await getAuthHeaders();
+      const headers = {
+        ...authHeaders,
+      };
       if (deviceId) {
         headers['x-device-id'] = deviceId;
       }

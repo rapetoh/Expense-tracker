@@ -430,11 +430,15 @@ export default function Home() {
       // --- Transcribe (via our backend, not directly from the phone) ---
       const transcribeUrl = resolveApiUrl("/api/ai/transcribe");
 
+      const { getAuthHeaders } = await import("@/utils/api");
+      const authHeaders = await getAuthHeaders();
+
       const transcribeRes = await fetch(transcribeUrl, {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": inferredMime,
+          ...authHeaders,
           ...(deviceId ? { "x-device-id": deviceId } : {}),
         },
         body: typedAudioBlob,

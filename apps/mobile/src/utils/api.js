@@ -1,4 +1,7 @@
 import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
+
+const authKey = `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`;
 
 function resolveUrl(path) {
   if (!path) return path;
@@ -32,6 +35,20 @@ export async function apiFetchJson(
     ...(headers || {}),
   };
 
+  // Add JWT token if authenticated
+  try {
+    const authData = await SecureStore.getItemAsync(authKey);
+    if (authData) {
+      const auth = JSON.parse(authData);
+      if (auth?.jwt) {
+        requestHeaders["Authorization"] = `Bearer ${auth.jwt}`;
+      }
+    }
+  } catch (e) {
+    // Ignore errors reading auth
+  }
+
+  // Add device ID as fallback (for backward compatibility or when not authenticated)
   if (deviceId) {
     requestHeaders["x-device-id"] = deviceId;
   }
@@ -54,6 +71,22 @@ export async function apiFetchJson(
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - token expired or invalid
+    if (response.status === 401) {
+      // Clear auth on 401
+      try {
+        await SecureStore.deleteItemAsync(authKey);
+      } catch (e) {
+        // Ignore
+      }
+      const text = await response.text().catch(() => "");
+      const error = new Error(
+        `Authentication required. Please sign in again.${text ? `: ${text}` : ""}`,
+      );
+      error.status = 401;
+      throw error;
+    }
+
     const text = await response.text().catch(() => "");
     throw new Error(
       `When fetching ${path}, the response was [${response.status}] ${response.statusText}${text ? `: ${text}` : ""}`,
@@ -70,6 +103,26 @@ export async function apiFetchJson(
 
 export function resolveApiUrl(path) {
   return resolveUrl(path);
+}
+
+/**
+ * Get authentication headers (JWT token) for API requests
+ * Returns an object with Authorization header if JWT is available
+ */
+export async function getAuthHeaders() {
+  const headers = {};
+  try {
+    const authData = await SecureStore.getItemAsync(authKey);
+    if (authData) {
+      const auth = JSON.parse(authData);
+      if (auth?.jwt) {
+        headers["Authorization"] = `Bearer ${auth.jwt}`;
+      }
+    }
+  } catch (e) {
+    // Ignore errors reading auth
+  }
+  return headers;
 }
 
 export function formatMoney(cents, currency = "USD") {

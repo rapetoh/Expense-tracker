@@ -1,8 +1,8 @@
 import sql from "@/app/api/utils/sql";
-import { requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId } from "@/app/api/utils/user";
 
 export async function GET(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const url = new URL(request.url);
@@ -10,8 +10,8 @@ export async function GET(request) {
   const type = typeParam && (typeParam === 'expense' || typeParam === 'income') ? typeParam : 'expense';
 
   const categoryRows = await sql(
-    "SELECT category, COALESCE(SUM(amount_cents), 0) AS total_cents FROM public.expenses WHERE device_id = $1 AND type = $2 GROUP BY category ORDER BY total_cents DESC",
-    [deviceId, type],
+    "SELECT category, COALESCE(SUM(amount_cents), 0) AS total_cents FROM public.expenses WHERE user_id = $1 AND type = $2 GROUP BY category ORDER BY total_cents DESC",
+    [userId, type],
   );
 
   const categoryBuckets = (categoryRows || []).map((r) => ({
@@ -21,4 +21,3 @@ export async function GET(request) {
 
   return Response.json({ category_buckets: categoryBuckets });
 }
-

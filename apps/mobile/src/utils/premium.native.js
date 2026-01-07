@@ -9,9 +9,8 @@ import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 export const PREMIUM_ENTITLEMENT_ID = "premium";
 
 function getRevenueCatApiKey() {
-  // On Anything, this is already available as an env var.
-  // This must be the *public* RevenueCat SDK key for iOS.
-  return process.env.REVENUE_CAT_API_KEY;
+  // Use EXPO_PUBLIC_ prefix for Expo environment variables
+  return process.env.EXPO_PUBLIC_REVENUE_CAT_API_KEY;
 }
 
 const usePremiumStore = create((set) => ({
@@ -25,7 +24,7 @@ export function usePremium() {
   return usePremiumStore();
 }
 
-export async function initPurchases({ deviceId }) {
+export async function initPurchases({ deviceId, userId }) {
   const apiKey = getRevenueCatApiKey();
   if (!apiKey) {
     usePremiumStore.getState().setState({
@@ -51,8 +50,11 @@ export async function initPurchases({ deviceId }) {
       return;
     }
 
-    // Tie purchases to your per-device identity (since this MVP runs without sign-in).
-    Purchases.configure({ apiKey, appUserID: deviceId || undefined });
+    // Use user_id if authenticated, otherwise fall back to device_id
+    // This ensures subscriptions work across devices when user is logged in
+    const appUserID = userId || deviceId || undefined;
+    
+    Purchases.configure({ apiKey, appUserID });
 
     await refreshPremium();
   } catch (e) {

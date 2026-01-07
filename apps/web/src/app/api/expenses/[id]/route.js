@@ -1,8 +1,8 @@
 import sql from "@/app/api/utils/sql";
-import { requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId } from "@/app/api/utils/user";
 
 export async function DELETE(request, { params: { id } }) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const parsedId = Number(id);
@@ -10,15 +10,15 @@ export async function DELETE(request, { params: { id } }) {
     return Response.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  await sql("DELETE FROM public.expenses WHERE id = $1 AND device_id = $2", [
+  await sql("DELETE FROM public.expenses WHERE id = $1 AND user_id = $2", [
     parsedId,
-    deviceId,
+    userId,
   ]);
   return Response.json({ ok: true });
 }
 
 export async function GET(request, { params: { id } }) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const parsedId = Number(id);
@@ -27,8 +27,8 @@ export async function GET(request, { params: { id } }) {
   }
 
   const rows = await sql(
-    "SELECT id, device_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency FROM public.expenses WHERE id = $1 AND device_id = $2 LIMIT 1",
-    [parsedId, deviceId],
+    "SELECT id, user_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency FROM public.expenses WHERE id = $1 AND user_id = $2 LIMIT 1",
+    [parsedId, userId],
   );
 
   if (!rows[0]) {
@@ -44,7 +44,7 @@ export async function GET(request, { params: { id } }) {
 }
 
 export async function PUT(request, { params: { id } }) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const parsedId = Number(id);
@@ -98,9 +98,9 @@ export async function PUT(request, { params: { id } }) {
   }
 
   values.push(parsedId);
-  values.push(deviceId);
+  values.push(userId);
 
-  const query = `UPDATE public.expenses SET ${setClauses.join(", ")} WHERE id = $${idx++} AND device_id = $${idx++} RETURNING id, device_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency`;
+  const query = `UPDATE public.expenses SET ${setClauses.join(", ")} WHERE id = $${idx++} AND user_id = $${idx++} RETURNING id, user_id, amount_cents, vendor, category, note, occurred_at, created_at, type, is_recurring, recurrence_frequency`;
 
   const rows = await sql(query, values);
   if (!rows[0]) {

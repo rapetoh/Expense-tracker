@@ -1,5 +1,5 @@
 import sql from "@/app/api/utils/sql";
-import { ensureDeviceSettings, requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId, ensureUserSettings } from "@/app/api/utils/user";
 import { getExpectedMonthlyExpenses, getExpectedMonthlyIncome } from "@/app/api/utils/recurring";
 
 function startOfUtcDay(d) {
@@ -22,10 +22,10 @@ function addMonthsUtc(d, months) {
 }
 
 export async function GET(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
-  const settings = await ensureDeviceSettings(deviceId);
+  const settings = await ensureUserSettings(userId);
 
   // Check for custom date range in query params
   const url = new URL(request.url);
@@ -49,16 +49,16 @@ export async function GET(request) {
 
   const [spentRows, incomeRows, categoryRows] = await sql.transaction((txn) => [
     txn(
-      "SELECT COALESCE(SUM(amount_cents), 0) AS spent_cents FROM public.expenses WHERE device_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense'",
-      [deviceId, monthStartDate.toISOString(), monthEndDate.toISOString()],
+      "SELECT COALESCE(SUM(amount_cents), 0) AS spent_cents FROM public.expenses WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense'",
+      [userId, monthStartDate.toISOString(), monthEndDate.toISOString()],
     ),
     txn(
-      "SELECT COALESCE(SUM(amount_cents), 0) AS income_cents FROM public.expenses WHERE device_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'income'",
-      [deviceId, monthStartDate.toISOString(), monthEndDate.toISOString()],
+      "SELECT COALESCE(SUM(amount_cents), 0) AS income_cents FROM public.expenses WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'income'",
+      [userId, monthStartDate.toISOString(), monthEndDate.toISOString()],
     ),
     txn(
-      "SELECT category, COALESCE(SUM(amount_cents), 0) AS total_cents FROM public.expenses WHERE device_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense' GROUP BY category ORDER BY total_cents DESC",
-      [deviceId, monthStartDate.toISOString(), monthEndDate.toISOString()],
+      "SELECT category, COALESCE(SUM(amount_cents), 0) AS total_cents FROM public.expenses WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3 AND type = 'expense' GROUP BY category ORDER BY total_cents DESC",
+      [userId, monthStartDate.toISOString(), monthEndDate.toISOString()],
     ),
   ]);
 
@@ -78,8 +78,8 @@ export async function GET(request) {
   }
 
   // Get expected amounts from recurring items
-  const expectedMonthlyExpenses = await getExpectedMonthlyExpenses(deviceId);
-  const expectedMonthlyIncome = await getExpectedMonthlyIncome(deviceId);
+  const expectedMonthlyExpenses = await getExpectedMonthlyExpenses(userId);
+  const expectedMonthlyIncome = await getExpectedMonthlyIncome(userId);
 
   const categoryBuckets = (categoryRows || []).map((r) => ({
     category: r.category,
@@ -120,4 +120,3 @@ export async function GET(request) {
     category_buckets: categoryBuckets,
   });
 }
-

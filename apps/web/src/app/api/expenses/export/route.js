@@ -1,14 +1,14 @@
 import sql from "@/app/api/utils/sql";
-import { requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId } from "@/app/api/utils/user";
 
 export async function GET(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
-  // Fetch all expenses for this device
+  // Fetch all expenses for this user
   const items = await sql(
-    "SELECT id, amount_cents, vendor, category, note, occurred_at, created_at FROM public.expenses WHERE device_id = $1 ORDER BY occurred_at DESC, id DESC",
-    [deviceId],
+    "SELECT id, amount_cents, vendor, category, note, occurred_at, created_at FROM public.expenses WHERE user_id = $1 ORDER BY occurred_at DESC, id DESC",
+    [userId],
   );
 
   // Convert to CSV format
@@ -41,4 +41,3 @@ export async function GET(request) {
     },
   });
 }
-

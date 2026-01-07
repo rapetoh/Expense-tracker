@@ -8,8 +8,12 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.roch.expensetracker",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "We need access to your camera to scan receipts and add expenses.",
+        "NSContactsUsageDescription": "We need access to your contacts to help you add expense information.",
+        "NSCalendarsUsageDescription": "We need access to your calendar to help you track recurring expenses."
       }
     },
     "android": {
@@ -49,7 +53,10 @@
       ],
       [
         "expo-video",
-        { "supportsBackgroundPlayback": true, "supportsPictureInPicture": true }
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
       ],
       "expo-font",
       "expo-secure-store",
@@ -64,7 +71,11 @@
     },
     "extra": {
       "router": {
-        "origin": false
+        "origin": false,
+        "sitemap": false
+      },
+      "eas": {
+        "projectId": "5183c560-0f82-43f4-ac8e-ade5dc0c9982"
       }
     },
     "runtimeVersion": {

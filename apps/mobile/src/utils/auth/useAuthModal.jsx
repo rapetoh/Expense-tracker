@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Modal, View } from 'react-native';
-import { create } from 'zustand';
-import { useCallback, useMemo } from 'react';
-import { AuthWebView } from './AuthWebView';
+import { useTheme } from '@/utils/theme';
 import { useAuthStore, useAuthModal } from './store';
-
+import AuthSignInScreen from '@/components/AuthSignInScreen';
+import AuthSignUpScreen from '@/components/AuthSignUpScreen';
 
 /**
  * This component renders a modal for authentication purposes.
@@ -12,7 +11,7 @@ import { useAuthStore, useAuthModal } from './store';
  *
  * @example
  * ```js
- * import { useAuthModal } from '@/utils/useAuthModal';
+ * import { useAuthModal } from '@/utils/auth/useAuthModal';
  * function MyComponent() {
  * const { open } = useAuthModal();
  * return <Button title="Login" onPress={() => open({ mode: 'signin' })} />;
@@ -21,7 +20,7 @@ import { useAuthStore, useAuthModal } from './store';
  *
  * @example
  * ```js
- * import { useRequireAuth } from '@/utils/useAuth';
+ * import { useRequireAuth } from '@/utils/auth/useAuth';
  * function MyComponent() {
  *   // automatically opens the auth modal if the user is not authenticated
  *   useRequireAuth();
@@ -30,39 +29,41 @@ import { useAuthStore, useAuthModal } from './store';
  *
  */
 export const AuthModal = () => {
-  const { isOpen, mode } = useAuthModal();
+  const { isOpen, mode, close } = useAuthModal();
   const { auth } = useAuthStore();
+  const { isDark } = useTheme();
+  const [currentMode, setCurrentMode] = useState(mode || 'signin');
 
-  const snapPoints = useMemo(() => ['100%'], []);
-  const proxyURL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
-  const baseURL = process.env.EXPO_PUBLIC_BASE_URL;
-  if (!proxyURL && !baseURL) {
-    return null;
-  }
+  // Sync mode when it changes externally
+  useEffect(() => {
+    if (mode) {
+      setCurrentMode(mode);
+    }
+  }, [mode]);
+
+  const bg = isDark ? '#000' : '#F9FAFB';
+
+  const handleSwitchToSignUp = useCallback(() => {
+    setCurrentMode('signup');
+  }, []);
+
+  const handleSwitchToSignIn = useCallback(() => {
+    setCurrentMode('signin');
+  }, []);
 
   return (
     <Modal
       visible={isOpen && !auth}
-      transparent={true}
+      transparent={false}
       animationType="slide"
+      onRequestClose={() => {}} // Prevent dismissal - users must authenticate
     >
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '100%',
-          width: '100%',
-          backgroundColor: '#fff',
-          padding: 0,
-        }}
-      >
-        <AuthWebView
-          mode={mode}
-          proxyURL={proxyURL}
-          baseURL={baseURL}
-        />
+      <View style={{ flex: 1, backgroundColor: bg }}>
+        {currentMode === 'signin' ? (
+          <AuthSignInScreen onSwitchToSignUp={handleSwitchToSignUp} />
+        ) : (
+          <AuthSignUpScreen onSwitchToSignIn={handleSwitchToSignIn} />
+        )}
       </View>
     </Modal>
   );

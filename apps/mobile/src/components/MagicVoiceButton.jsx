@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
+import { BlurView } from "expo-blur";
 import { Mic } from "lucide-react-native";
 import { useTheme } from "@/utils/theme";
 
@@ -56,14 +57,9 @@ export default function MagicVoiceButton({
     };
   }, [isActive, scale, glow]);
 
-  const bg = useMemo(() => {
-    if (disabled) return isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.15)";
-    return isDark ? "#FFFFFF" : "#000000";
-  }, [disabled, isDark]);
-
   const iconColor = useMemo(() => {
-    if (disabled) return isDark ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.55)";
-    return isDark ? "#000" : "#fff";
+    if (disabled) return isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.55)";
+    return isDark ? "#fff" : "#000";
   }, [disabled, isDark]);
 
   return (
@@ -84,25 +80,40 @@ export default function MagicVoiceButton({
           opacity: disabled ? 0.7 : 1,
         }}
       >
-        <Pressable
-          onLongPress={disabled ? undefined : onLongPress}
-          onPressOut={disabled ? undefined : onPressOut}
-          delayLongPress={180}
-          style={({ pressed }) => {
-            const pressedScale = pressed ? 0.98 : 1;
-            return {
-              width: 78,
-              height: 78,
-              borderRadius: 39,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: bg,
-              transform: [{ scale: pressedScale }],
-            };
+        <View
+          style={{
+            borderRadius: 39,
+            overflow: "hidden",
+            borderWidth: 1,
+            borderColor: isDark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.08)",
           }}
         >
-          <Mic size={28} color={iconColor} />
-        </Pressable>
+          <BlurView
+            intensity={disabled ? 20 : 32}
+            tint={isDark ? "dark" : "light"}
+            style={{
+              width: 78,
+              height: 78,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Pressable
+              onLongPress={disabled ? undefined : onLongPress}
+              onPressOut={disabled ? undefined : onPressOut}
+              delayLongPress={180}
+              style={({ pressed }) => ({
+                width: "100%",
+                height: "100%",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Mic size={28} color={iconColor} />
+            </Pressable>
+          </BlurView>
+        </View>
       </Animated.View>
 
       <Animated.View

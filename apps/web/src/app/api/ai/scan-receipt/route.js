@@ -1,7 +1,7 @@
-import { requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId } from "@/app/api/utils/user";
 
 export async function POST(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const openaiApiKey = process.env.OPENAI_API_KEY;

@@ -1,8 +1,8 @@
 import sql from "@/app/api/utils/sql";
-import { requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId } from "@/app/api/utils/user";
 
 export async function GET(request, { params: { id } }) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const parsedId = Number(id);
@@ -11,8 +11,8 @@ export async function GET(request, { params: { id } }) {
   }
 
   const rows = await sql(
-    "SELECT id, category_name, icon, color, type FROM public.custom_categories WHERE id = $1 AND device_id = $2 LIMIT 1",
-    [parsedId, deviceId],
+    "SELECT id, category_name, icon, color, type FROM public.custom_categories WHERE id = $1 AND user_id = $2 LIMIT 1",
+    [parsedId, userId],
   );
 
   if (!rows[0]) {
@@ -23,7 +23,7 @@ export async function GET(request, { params: { id } }) {
 }
 
 export async function PUT(request, { params: { id } }) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const parsedId = Number(id);
@@ -62,9 +62,9 @@ export async function PUT(request, { params: { id } }) {
   }
 
   values.push(parsedId);
-  values.push(deviceId);
+  values.push(userId);
 
-  const query = `UPDATE public.custom_categories SET ${setClauses.join(", ")} WHERE id = $${idx++} AND device_id = $${idx++} RETURNING id, category_name, icon, color, type`;
+  const query = `UPDATE public.custom_categories SET ${setClauses.join(", ")} WHERE id = $${idx++} AND user_id = $${idx++} RETURNING id, category_name, icon, color, type`;
 
   const rows = await sql(query, values);
   if (!rows[0]) {
@@ -75,7 +75,7 @@ export async function PUT(request, { params: { id } }) {
 }
 
 export async function DELETE(request, { params: { id } }) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const parsedId = Number(id);
@@ -84,8 +84,8 @@ export async function DELETE(request, { params: { id } }) {
   }
 
   const rows = await sql(
-    "DELETE FROM public.custom_categories WHERE id = $1 AND device_id = $2 RETURNING id",
-    [parsedId, deviceId],
+    "DELETE FROM public.custom_categories WHERE id = $1 AND user_id = $2 RETURNING id",
+    [parsedId, userId],
   );
 
   if (rows.length === 0) {
@@ -94,4 +94,3 @@ export async function DELETE(request, { params: { id } }) {
 
   return Response.json({ success: true, id: parsedId });
 }
-

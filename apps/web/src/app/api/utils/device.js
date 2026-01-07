@@ -1,4 +1,5 @@
 import sql from "@/app/api/utils/sql";
+import { getUserIdFromRequest } from "./user";
 
 export function getDeviceIdFromRequest(request) {
   const deviceId = request.headers.get("x-device-id");
@@ -6,6 +7,34 @@ export function getDeviceIdFromRequest(request) {
     return null;
   }
   return String(deviceId).trim();
+}
+
+/**
+ * Get user ID or device ID from request
+ * Prefers user ID from JWT, falls back to device ID
+ * For production, we should require auth, but keeping device ID as fallback for now
+ */
+export async function getUserOrDeviceId(request) {
+  const { userId } = await getUserIdFromRequest(request);
+  
+  if (userId) {
+    return { userId, deviceId: null, error: null };
+  }
+  
+  // Fallback to device ID (for backward compatibility)
+  const deviceId = getDeviceIdFromRequest(request);
+  if (deviceId) {
+    return { userId: null, deviceId, error: null };
+  }
+  
+  return {
+    userId: null,
+    deviceId: null,
+    error: Response.json(
+      { error: 'Authentication required. Please sign in.' },
+      { status: 401 },
+    ),
+  };
 }
 
 export async function ensureDeviceSettings(deviceId) {

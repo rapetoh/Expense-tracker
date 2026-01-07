@@ -14,14 +14,23 @@ import {
   Moon,
   Sun,
   Smartphone,
+  User,
+  LogOut,
+  Edit2,
+  Key,
+  Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react-native";
 
 import ScreenLayout from "@/components/ScreenLayout";
 import useDeviceId from "@/utils/useDeviceId";
-import { formatMoney, toCentsFromLooseNumber } from "@/utils/api";
+import { formatMoney, toCentsFromLooseNumber, resolveApiUrl } from "@/utils/api";
 import { useDeviceSettings, useUpdateWeeklyBudget } from "@/utils/queries";
 import { presentPremiumPaywall, usePremium } from "@/utils/premium";
 import { useTheme, THEME_OPTIONS } from "@/utils/theme";
+import { useAuth, useAuthStore } from "@/utils/auth/useAuth";
+import { useRouter } from "expo-router";
 
 const Row = React.memo(({ icon: Icon, title, description, children, cardBg, isDark, textPrimary, textSecondary }) => (
   <View
@@ -78,6 +87,8 @@ export default function Profile() {
   const { themePreference, setThemePreference, isDark } = useTheme();
   const deviceId = useDeviceId();
   const premium = usePremium();
+  const { auth, setAuth, signOut } = useAuth();
+  const router = useRouter();
 
   const settingsQuery = useDeviceSettings({ deviceId });
   const updateBudget = useUpdateWeeklyBudget({ deviceId });
@@ -90,9 +101,37 @@ export default function Profile() {
   const [budgetDraft, setBudgetDraft] = useState("");
   const [selectedBudgetPeriod, setSelectedBudgetPeriod] = useState(budgetPeriod);
 
+  // User profile state
+  const [userName, setUserName] = useState(auth?.user?.name || "");
+  const [userEmail, setUserEmail] = useState(auth?.user?.email || "");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
+
+  // Password change state
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const textPrimary = isDark ? "#fff" : "#1A1A1A";
   const textSecondary = isDark ? "rgba(255,255,255,0.7)" : "#4B5563";
   const cardBg = isDark ? "rgba(255,255,255,0.06)" : "#FFFFFF";
+  const inputBg = isDark ? "rgba(255,255,255,0.08)" : "#fff";
+  const borderColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
+
+  // Sync user data from auth
+  useEffect(() => {
+    if (auth?.user) {
+      setUserName(auth.user.name || "");
+      setUserEmail(auth.user.email || "");
+    }
+  }, [auth]);
 
   // Update selected period when settings load
   useEffect(() => {
@@ -119,14 +158,10 @@ export default function Profile() {
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: isDark
-      ? "rgba(255,255,255,0.06)"
-      : "#F9FAFB",
+    backgroundColor: inputBg,
     borderWidth: 1,
-    borderColor: isDark
-      ? "rgba(255,255,255,0.10)"
-      : "rgba(0,0,0,0.12)",
-  }), [textPrimary, isDark]);
+    borderColor: borderColor,
+  }), [textPrimary, inputBg, borderColor]);
 
   const saveBudget = useCallback(async () => {
     try {
@@ -158,6 +193,180 @@ export default function Profile() {
 
     // If user cancels, do nothing.
   }, []);
+
+  // Update profile
+  const handleUpdateProfile = useCallback(async () => {
+    if (!userName.trim() || !userEmail.trim()) {
+      setProfileError("Name and email are required");
+      return;
+    }
+
+    setProfileLoading(true);
+    setProfileError("");
+
+    try {
+      const url = resolveApiUrl("/api/user/profile");
+      const token = auth?.jwt;
+      
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: userName.trim(),
+          email: userEmail.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setProfileError(data.error || "Failed to update profile");
+        setProfileLoading(false);
+        return;
+      }
+
+      // Update auth store with new user data and JWT
+      setAuth({
+        jwt: data.jwt,
+        user: data.user,
+      });
+
+      setIsEditingProfile(false);
+      setProfileLoading(false);
+    } catch (err) {
+      console.error("Update profile error:", err);
+      setProfileError("An error occurred. Please try again.");
+      setProfileLoading(false);
+    }
+  }, [userName, userEmail, auth?.jwt, setAuth]);
+
+  // Change password
+  const handleChangePassword = useCallback(async () => {
+    if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+      setPasswordError("All password fields are required");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordError("");
+
+    try {
+      const url = resolveApiUrl("/api/user/password");
+      const token = auth?.jwt;
+      
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPasswordError(data.error || "Failed to change password");
+        setPasswordLoading(false);
+        return;
+      }
+
+      // Clear password fields and close
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setIsChangingPassword(false);
+      setPasswordLoading(false);
+      
+      Alert.alert("Success", "Password changed successfully");
+    } catch (err) {
+      console.error("Change password error:", err);
+      setPasswordError("An error occurred. Please try again.");
+      setPasswordLoading(false);
+    }
+  }, [currentPassword, newPassword, confirmPassword, auth?.jwt]);
+
+  // Delete account
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const url = resolveApiUrl("/api/user/account");
+              const token = auth?.jwt;
+              
+              const response = await fetch(url, {
+                method: "DELETE",
+                headers: {
+                  "Authorization": `Bearer ${token}`,
+                },
+              });
+
+              if (!response.ok) {
+                const data = await response.json();
+                Alert.alert("Error", data.error || "Failed to delete account");
+                return;
+              }
+
+              // Sign out and redirect to login
+              signOut();
+              router.replace("/");
+            } catch (err) {
+              console.error("Delete account error:", err);
+              Alert.alert("Error", "An error occurred. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  }, [auth?.jwt, signOut, router]);
+
+  // Logout
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: () => {
+            signOut();
+            router.replace("/");
+          },
+        },
+      ]
+    );
+  }, [signOut, router]);
 
   const themeOptions = [
     { value: THEME_OPTIONS.SYSTEM, label: "System", icon: Smartphone },
@@ -206,6 +415,311 @@ export default function Profile() {
         >
           Budget + premium
         </Text>
+
+        {/* User Info Section */}
+        <Row
+          icon={User}
+          title={auth?.user?.name || "User"}
+          description={auth?.user?.email || ""}
+          cardBg={cardBg}
+          isDark={isDark}
+          textPrimary={textPrimary}
+          textSecondary={textSecondary}
+        >
+          {!isEditingProfile ? (
+            <TouchableOpacity
+              onPress={() => setIsEditingProfile(true)}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 12,
+                borderRadius: 16,
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#F9FAFB",
+                borderWidth: 1,
+                borderColor: borderColor,
+              }}
+            >
+              <Edit2 size={16} color={textPrimary} />
+              <Text
+                style={{
+                  marginLeft: 8,
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 14,
+                  color: textPrimary,
+                }}
+              >
+                Edit Profile
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View>
+              <TextInput
+                placeholder="Name"
+                placeholderTextColor={textSecondary}
+                value={userName}
+                onChangeText={setUserName}
+                style={budgetInputStyle}
+              />
+              <TextInput
+                placeholder="Email"
+                placeholderTextColor={textSecondary}
+                value={userEmail}
+                onChangeText={setUserEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={[budgetInputStyle, { marginTop: 12 }]}
+              />
+              {profileError ? (
+                <Text
+                  style={{
+                    fontFamily: "Roboto_400Regular",
+                    fontSize: 12,
+                    color: "#EF4444",
+                    marginTop: 8,
+                  }}
+                >
+                  {profileError}
+                </Text>
+              ) : null}
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsEditingProfile(false);
+                    setProfileError("");
+                    setUserName(auth?.user?.name || "");
+                    setUserEmail(auth?.user?.email || "");
+                  }}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#F9FAFB",
+                    borderWidth: 1,
+                    borderColor: borderColor,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_600SemiBold",
+                      fontSize: 14,
+                      color: textPrimary,
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleUpdateProfile}
+                  disabled={profileLoading}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? "#FFFFFF" : "#1F2937",
+                    alignItems: "center",
+                    opacity: profileLoading ? 0.7 : 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_600SemiBold",
+                      fontSize: 14,
+                      color: isDark ? "#000" : "#fff",
+                    }}
+                  >
+                    {profileLoading ? "Saving..." : "Save"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </Row>
+
+        {/* Change Password Section */}
+        <Row
+          icon={Key}
+          title="Password"
+          description={isChangingPassword ? "Change your password" : "Update your password"}
+          cardBg={cardBg}
+          isDark={isDark}
+          textPrimary={textPrimary}
+          textSecondary={textSecondary}
+        >
+          {!isChangingPassword ? (
+            <TouchableOpacity
+              onPress={() => setIsChangingPassword(true)}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 12,
+                borderRadius: 16,
+                backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#F9FAFB",
+                borderWidth: 1,
+                borderColor: borderColor,
+              }}
+            >
+              <Key size={16} color={textPrimary} />
+              <Text
+                style={{
+                  marginLeft: 8,
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 14,
+                  color: textPrimary,
+                }}
+              >
+                Change Password
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View>
+              <View style={{ position: "relative" }}>
+                <TextInput
+                  placeholder="Current Password"
+                  placeholderTextColor={textSecondary}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  secureTextEntry={!showCurrentPassword}
+                  style={budgetInputStyle}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                  style={{
+                    position: "absolute",
+                    right: 14,
+                    top: 12,
+                  }}
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff size={18} color={textSecondary} />
+                  ) : (
+                    <Eye size={18} color={textSecondary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              <View style={{ position: "relative", marginTop: 12 }}>
+                <TextInput
+                  placeholder="New Password"
+                  placeholderTextColor={textSecondary}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNewPassword}
+                  style={budgetInputStyle}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                  style={{
+                    position: "absolute",
+                    right: 14,
+                    top: 12,
+                  }}
+                >
+                  {showNewPassword ? (
+                    <EyeOff size={18} color={textSecondary} />
+                  ) : (
+                    <Eye size={18} color={textSecondary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              <View style={{ position: "relative", marginTop: 12 }}>
+                <TextInput
+                  placeholder="Confirm New Password"
+                  placeholderTextColor={textSecondary}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  style={budgetInputStyle}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={{
+                    position: "absolute",
+                    right: 14,
+                    top: 12,
+                  }}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={18} color={textSecondary} />
+                  ) : (
+                    <Eye size={18} color={textSecondary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              {passwordError ? (
+                <Text
+                  style={{
+                    fontFamily: "Roboto_400Regular",
+                    fontSize: 12,
+                    color: "#EF4444",
+                    marginTop: 8,
+                  }}
+                >
+                  {passwordError}
+                </Text>
+              ) : null}
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsChangingPassword(false);
+                    setPasswordError("");
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#F9FAFB",
+                    borderWidth: 1,
+                    borderColor: borderColor,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_600SemiBold",
+                      fontSize: 14,
+                      color: textPrimary,
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleChangePassword}
+                  disabled={passwordLoading}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? "#FFFFFF" : "#1F2937",
+                    alignItems: "center",
+                    opacity: passwordLoading ? 0.7 : 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_600SemiBold",
+                      fontSize: 14,
+                      color: isDark ? "#000" : "#fff",
+                    }}
+                  >
+                    {passwordLoading ? "Changing..." : "Change"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </Row>
 
         <Row
           icon={Moon}
@@ -445,8 +959,8 @@ export default function Profile() {
 
         <Row
           icon={Shield}
-          title="Data model"
-          description="This MVP runs without sign-in. Your data is stored per-device."
+          title="Data & Privacy"
+          description="Your data is securely stored in your account"
           cardBg={cardBg}
           isDark={isDark}
           textPrimary={textPrimary}
@@ -459,9 +973,76 @@ export default function Profile() {
               color: textSecondary,
             }}
           >
-            If you want multi-device sync and sharing, enable User Accounts in
-            the project settings.
+            All your expenses, budgets, and settings are tied to your account and sync across all your devices.
           </Text>
+        </Row>
+
+        {/* Logout Section */}
+        <Row
+          icon={LogOut}
+          title="Sign Out"
+          description="Sign out of your account"
+          cardBg={cardBg}
+          isDark={isDark}
+          textPrimary={textPrimary}
+          textSecondary={textSecondary}
+        >
+          <TouchableOpacity
+            onPress={handleLogout}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: isDark ? "rgba(239,68,68,0.15)" : "#FEE2E2",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(239,68,68,0.3)" : "#FECACA",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: "Poppins_600SemiBold",
+                fontSize: 14,
+                color: "#EF4444",
+              }}
+            >
+              Sign Out
+            </Text>
+          </TouchableOpacity>
+        </Row>
+
+        {/* Delete Account Section */}
+        <Row
+          icon={Trash2}
+          title="Delete Account"
+          description="Permanently delete your account and all data"
+          cardBg={cardBg}
+          isDark={isDark}
+          textPrimary={textPrimary}
+          textSecondary={textSecondary}
+        >
+          <TouchableOpacity
+            onPress={handleDeleteAccount}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: 14,
+              borderRadius: 16,
+              backgroundColor: isDark ? "rgba(239,68,68,0.15)" : "#FEE2E2",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(239,68,68,0.3)" : "#FECACA",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: "Poppins_600SemiBold",
+                fontSize: 14,
+                color: "#EF4444",
+              }}
+            >
+              Delete Account
+            </Text>
+          </TouchableOpacity>
         </Row>
 
         {settingsQuery.isLoading ? (

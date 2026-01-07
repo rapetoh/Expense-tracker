@@ -1,15 +1,15 @@
 import sql from "@/app/api/utils/sql";
-import { requireDeviceId } from "@/app/api/utils/device";
+import { requireUserId } from "@/app/api/utils/user";
 
 export async function GET(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const url = new URL(request.url);
   const typeParam = url.searchParams.get("type"); // Optional filter by type
 
-  let query = "SELECT id, category_name, icon, color, type FROM public.custom_categories WHERE device_id = $1";
-  const params = [deviceId];
+  let query = "SELECT id, category_name, icon, color, type FROM public.custom_categories WHERE user_id = $1";
+  const params = [userId];
   
   if (typeParam && (typeParam === 'expense' || typeParam === 'income')) {
     query += " AND type = $2 ORDER BY created_at ASC";
@@ -24,7 +24,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { deviceId, error } = requireDeviceId(request);
+  const { userId, error } = await requireUserId(request);
   if (error) return error;
 
   const body = await request.json().catch(() => ({}));
@@ -42,8 +42,8 @@ export async function POST(request) {
 
   // Check if category already exists (same name and type)
   const existing = await sql(
-    "SELECT category_name FROM public.custom_categories WHERE device_id = $1 AND LOWER(category_name) = LOWER($2) AND type = $3 LIMIT 1",
-    [deviceId, categoryName, type],
+    "SELECT category_name FROM public.custom_categories WHERE user_id = $1 AND LOWER(category_name) = LOWER($2) AND type = $3 LIMIT 1",
+    [userId, categoryName, type],
   );
 
   if (existing.length > 0) {
@@ -54,8 +54,8 @@ export async function POST(request) {
   }
 
   const rows = await sql(
-    "INSERT INTO public.custom_categories (device_id, category_name, icon, color, type) VALUES ($1, $2, $3, $4, $5) RETURNING id, category_name, icon, color, type",
-    [deviceId, categoryName, icon, color, type],
+    "INSERT INTO public.custom_categories (user_id, category_name, icon, color, type) VALUES ($1, $2, $3, $4, $5) RETURNING id, category_name, icon, color, type",
+    [userId, categoryName, icon, color, type],
   );
 
   return Response.json(rows[0]);
@@ -68,4 +68,3 @@ export async function DELETE(request) {
     { status: 400 },
   );
 }
-
