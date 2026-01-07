@@ -1,4 +1,4 @@
-import sql from "./sql";
+import sql from "./sql.js";
 
 /**
  * Calculate expected monthly amount from a recurring item

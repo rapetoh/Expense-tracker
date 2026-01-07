@@ -1,5 +1,5 @@
 import sql from "./sql.js";
-import { getUserIdFromRequest } from "./user";
+import { getUserIdFromRequest } from "./user.js";
 
 export function getDeviceIdFromRequest(request) {
   const deviceId = request.headers.get("x-device-id");
