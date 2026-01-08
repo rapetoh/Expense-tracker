@@ -1,11 +1,15 @@
 import handler from './build/server/index.js';
-import http from 'node:http';
+import { serve } from '@hono/node-server';
 
 const port = Number(process.env.PORT || 3000);
 
-const server = http.createServer(handler);
-server.listen(port, '0.0.0.0', () => {
-	console.log(`Listening on ${port}`);
+serve({
+  fetch: handler,
+  port,
+  hostname: '0.0.0.0',
+}, (info) => {
+  console.log(`🚀 Server started on port ${info.port}`);
+  console.log(`🌍 http://${info.address}:${info.port}`);
 });
 
 
