@@ -9,7 +9,7 @@
 			"distribution": "internal",
 			"env": {
 				"EXPO_PUBLIC_PROJECT_GROUP_ID": "expense-tracker",
-				"EXPO_PUBLIC_REVENUE_CAT_API_KEY": "appl_YOUR_ACTUAL_KEY_HERE",
+				"EXPO_PUBLIC_REVENUE_CAT_API_KEY": "appl_DkixBFBtpFKmKnICofPnzrMbaoV",
 				"EXPO_PUBLIC_BASE_URL": "http://192.168.1.2:4000",
 				"EXPO_PUBLIC_PROXY_BASE_URL": "http://192.168.1.2:4000",
 				"EXPO_PUBLIC_HOST": "192.168.1.2:4000"
@@ -19,7 +19,7 @@
 			"distribution": "internal",
 			"env": {
 				"EXPO_PUBLIC_PROJECT_GROUP_ID": "expense-tracker",
-				"EXPO_PUBLIC_REVENUE_CAT_API_KEY": "appl_YOUR_ACTUAL_KEY_HERE",
+				"EXPO_PUBLIC_REVENUE_CAT_API_KEY": "appl_DkixBFBtpFKmKnICofPnzrMbaoV",
 				"EXPO_PUBLIC_BASE_URL": "http://192.168.1.2:4000",
 				"EXPO_PUBLIC_PROXY_BASE_URL": "http://192.168.1.2:4000",
 				"EXPO_PUBLIC_HOST": "192.168.1.2:4000"
@@ -29,10 +29,10 @@
 			"autoIncrement": true,
 			"env": {
 				"EXPO_PUBLIC_PROJECT_GROUP_ID": "expense-tracker",
-				"EXPO_PUBLIC_REVENUE_CAT_API_KEY": "appl_YOUR_ACTUAL_KEY_HERE",
-				"EXPO_PUBLIC_BASE_URL": "http://192.168.1.2:4000",
-				"EXPO_PUBLIC_PROXY_BASE_URL": "http://192.168.1.2:4000",
-				"EXPO_PUBLIC_HOST": "192.168.1.2:4000"
+				"EXPO_PUBLIC_REVENUE_CAT_API_KEY": "appl_DkixBFBtpFKmKnICofPnzrMbaoV",
+				"EXPO_PUBLIC_BASE_URL": "https://expense-tracker-e0wd.onrender.com",
+				"EXPO_PUBLIC_PROXY_BASE_URL": "https://expense-tracker-e0wd.onrender.com",
+				"EXPO_PUBLIC_HOST": "expense-tracker-e0wd.onrender.com"
 			}
 		}
 	},
