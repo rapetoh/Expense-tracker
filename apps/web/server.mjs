@@ -1,7 +1,10 @@
-import handler from './build/server/index.js';
+import getHandler from './build/server/index.js';
 import { serve } from '@hono/node-server';
 
 const port = Number(process.env.PORT || 3000);
+
+// Call the function to get the handler (lazy initialization)
+const handler = await getHandler();
 
 serve({
   fetch: handler,

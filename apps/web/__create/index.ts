@@ -251,10 +251,12 @@ app.use('/api/auth/*', async (c, next) => {
 });
 app.route(API_BASENAME, api);
 
-const server = await createHonoServer({
-  app,
-  defaultLogger: false,
-});
-
-// Export the fetch handler instead of the server to avoid auto-starting
-export default server.fetch;
+// Export a function that returns the fetch handler
+// This prevents auto-starting the server on import
+export default async () => {
+  const server = await createHonoServer({
+    app,
+    defaultLogger: false,
+  });
+  return server.fetch;
+};
