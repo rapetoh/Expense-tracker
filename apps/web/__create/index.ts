@@ -11,7 +11,7 @@ import { cors } from 'hono/cors';
 import { proxy } from 'hono/proxy';
 import { bodyLimit } from 'hono/body-limit';
 import { requestId } from 'hono/request-id';
-import { createRequestHandler } from '@react-router/node';
+import { createHonoServer } from 'react-router-hono-server/node';
 import { serializeError } from 'serialize-error';
 import ws from 'ws';
 import NeonAdapter from './adapter';
@@ -251,20 +251,9 @@ app.use('/api/auth/*', async (c, next) => {
 });
 app.route(API_BASENAME, api);
 
-// Export a fetch handler directly instead of using createHonoServer
-// This prevents auto-starting a server and works with react-router-serve
-// react-router-serve will create its own server and call this handler
-const reactRouterHandler = createRequestHandler({
-  build: () => import('./assets/server-build.js'),
-  mode: process.env.NODE_ENV || 'production',
+// Export createHonoServer - it will use process.env.PORT automatically
+// Run with: node ./build/server/index.js
+export default await createHonoServer({
+  app,
+  defaultLogger: false,
 });
-
-export default async (req) => {
-  // First try React Router handler for SSR pages
-  const routerResponse = await reactRouterHandler(req);
-  if (routerResponse && routerResponse.status !== 404) {
-    return routerResponse;
-  }
-  // Fallback to Hono app for API routes
-  return app.fetch(req);
-};
