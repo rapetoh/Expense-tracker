@@ -251,12 +251,9 @@ app.use('/api/auth/*', async (c, next) => {
 });
 app.route(API_BASENAME, api);
 
-// Export a function that returns the fetch handler
-// This prevents auto-starting the server on import
-export default async () => {
-  const server = await createHonoServer({
-    app,
-    defaultLogger: false,
-  });
-  return server.fetch;
-};
+// Export the server from createHonoServer directly
+// react-router-serve will handle it properly and respect PORT env var
+export default await createHonoServer({
+  app,
+  defaultLogger: false,
+});
