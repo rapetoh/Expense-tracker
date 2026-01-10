@@ -31,12 +31,17 @@ export default function RootLayout() {
     Roboto_400Regular,
   });
 
-  // Add timeout to prevent infinite hang
+  // Guaranteed timeout to force splash screen hide
   const [forceReady, setForceReady] = useState(false);
   useEffect(() => {
+    // Independent timeout - force hide splash after 2 seconds, no conditions
     const timeout = setTimeout(() => {
       setForceReady(true);
-    }, 5000); // 5 second timeout
+      // Force hide splash screen immediately when timeout fires
+      SplashScreen.hideAsync().catch(() => {
+        // Ignore errors - splash might already be hidden
+      });
+    }, 2000); // 2 second timeout for faster UX
     return () => clearTimeout(timeout);
   }, []);
 
@@ -44,21 +49,31 @@ export default function RootLayout() {
     initiate();
   }, [initiate]);
 
+  // Hide splash as soon as everything is ready (optimistic - don't wait for timeout)
   useEffect(() => {
-    // Initialize RevenueCat with user_id if authenticated, otherwise device_id
-    const userId = auth?.user?.id;
-    const idToUse = userId || deviceId;
-    
-    if (idToUse) {
-      initPurchases({ deviceId: idToUse, userId: userId || undefined });
+    if (isReady && (fontsLoaded || fontsError)) {
+      SplashScreen.hideAsync().catch(() => {
+        // Ignore errors - might already be hidden
+      });
     }
-  }, [deviceId, auth?.user?.id]);
+  }, [isReady, fontsLoaded, fontsError]);
 
+  // RevenueCat - completely non-blocking, deferred to next tick
   useEffect(() => {
-    if ((isReady && (fontsLoaded || fontsError)) || forceReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [isReady, fontsLoaded, fontsError, forceReady]);
+    // Defer to next tick - don't block render
+    const timeout = setTimeout(() => {
+      const userId = auth?.user?.id;
+      const idToUse = userId || deviceId;
+      
+      if (idToUse) {
+        initPurchases({ deviceId: idToUse, userId: userId || undefined }).catch(() => {
+          // Silent fail - don't log, don't block
+        });
+      }
+    }, 100); // Defer by 100ms to ensure render happens first
+    
+    return () => clearTimeout(timeout);
+  }, [deviceId, auth?.user?.id]);
 
   if ((!isReady || (!fontsLoaded && !fontsError)) && !forceReady) {
     return null;

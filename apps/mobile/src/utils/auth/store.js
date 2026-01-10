@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
-export const authKey = `${process.env.EXPO_PUBLIC_PROJECT_GROUP_ID}-jwt`;
+// Validate environment variable and provide fallback
+const projectGroupId = process.env.EXPO_PUBLIC_PROJECT_GROUP_ID;
+if (!projectGroupId) {
+  console.error('[Auth] EXPO_PUBLIC_PROJECT_GROUP_ID is not set! Auth will not work properly.');
+}
+export const authKey = projectGroupId ? `${projectGroupId}-jwt` : 'default-jwt';
 
 /**
  * This store manages the authentication state of the application.

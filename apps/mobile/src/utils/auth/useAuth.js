@@ -17,12 +17,32 @@ export const useAuth = () => {
   const { isOpen, close, open } = useAuthModal();
 
   const initiate = useCallback(() => {
-    SecureStore.getItemAsync(authKey).then((auth) => {
+    // Add timeout to prevent infinite hang
+    const timeout = setTimeout(() => {
+      // Force ready if SecureStore takes too long
       useAuthStore.setState({
-        auth: auth ? JSON.parse(auth) : null,
+        auth: null,
         isReady: true,
       });
-    });
+    }, 2000); // 2 second timeout for SecureStore
+
+    SecureStore.getItemAsync(authKey)
+      .then((auth) => {
+        clearTimeout(timeout);
+        useAuthStore.setState({
+          auth: auth ? JSON.parse(auth) : null,
+          isReady: true,
+        });
+      })
+      .catch((error) => {
+        clearTimeout(timeout);
+        console.error('[Auth] Failed to load from SecureStore:', error);
+        // Graceful degradation - continue without auth
+        useAuthStore.setState({
+          auth: null,
+          isReady: true,
+        });
+      });
   }, []);
 
   useEffect(() => {}, []);
