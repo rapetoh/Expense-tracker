@@ -18,6 +18,15 @@ export default function Index() {
 
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState(false);
+  const [forceAuthReady, setForceAuthReady] = useState(false);
+
+  // Timeout to force proceed even if authReady is false
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setForceAuthReady(true);
+    }, 3000); // 3 second timeout
+    return () => clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -54,7 +63,7 @@ export default function Index() {
     return done ? "/(tabs)/home" : "/onboarding";
   }, [done, isAuthenticated, authReady]);
 
-  if (!ready || !authReady) {
+  if ((!ready || !authReady) && !forceAuthReady) {
     // Custom in-app splash while we decide where to route.
     return (
       <ScreenLayout variant="splash">
